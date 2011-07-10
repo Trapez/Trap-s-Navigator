@@ -1,0 +1,284 @@
+//    Copyright 2011 Trapez Breen
+//
+//    This file is part of Trap's Navigator.
+//
+//    Trap's Navigator is free software: you can redistribute it and/or modify
+//    it under the terms of the GNU General Public License as published by
+//    the Free Software Foundation, either version 3 of the License, or
+//    (at your option) any later version.
+//
+//    Trap's Navigator is distributed in the hope that it will be useful,
+//    but WITHOUT ANY WARRANTY; without even the implied warranty of
+//    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//    GNU General Public License for more details.
+//
+//    You should have received a copy of the GNU General Public License
+//    along with Trap's Navigator.  If not, see <http://www.gnu.org/licenses/>.
+
+$module (integer DEBUG)
+
+//string SERVER = "http://trapsnavigator.appspot.com";
+string SERVER = "http://88.90.51.112:8081";
+$import utils.lslm(DEBUG=DEBUG, SERVER=SERVER);
+
+key user_req_id;
+key save_course_req_id;
+key marks_req_id;
+key my_courses_req_id;
+key region_courses_req_id;
+key course_req_id;
+key get_mark_req_id;
+key add_course_req_id;
+key add_mark_req_id;
+key reuse_mark_req_id;
+key delete_req_id;
+key edit_req_id;
+key set_state_req_id;
+key get_state_req_id;
+key delete_state_req_id;
+key update_state_req_id;
+key finished_state_req_id;
+key get_bl_users_req_id;
+key get_bl_courses_req_id;
+key toggle_user_req_id;
+key toggle_course_req_id;
+key export_req_id;
+
+string current_turn;
+string current_region;
+integer current_mark;
+vector current_pos;
+integer marks_length;
+key owner;
+string state_;
+string courseid;
+list choices;
+string course_access;
+string course_type; 
+integer course_done;
+string edit_action;
+vector newmark;
+string newturn;
+string newcoursename;
+string newmarkname;
+string comment;
+
+string VERSION = "v0.40beta2";
+integer MARK_STRIDE = 4;
+float DEFAULT_Z = 25.0;
+
+list MAIN_OPTIONS_EDITOR =  ["Sail course", "SAIL", "Add course", "ADD", "Edit course", "EDIT", "Options", "OPTIONS"];
+list MAIN_OPTIONS_RACER =  ["Sail course", "SAIL"];
+list START_MARK_OPTIONS = ["Start mark", "START"];
+list ADD_MARK_OPTIONS = ["CW", "CW", "CCW", "CCW", "Turn (CW/CCW) at gate", "GATE", "Sail through gate", "GATEPASS", "Waypoint", "WP"];
+list FINISH_MARK_OPTIONS = ["Finish mark", "FINISH"];
+list YES_NO_OPTIONS = ["Yes", "YES", "No", "NO"];
+list CANCEL_CONTINUE_OPTIONS = ["Cancel", "CANCEL", "Continue", "CONT"];
+list TRY_CANCEL = ["Try again", "TRY", "Cancel", "CANCEL"];
+list EDIT_OPTIONS = ["Delete course", "DELC", "Rename course", "RENC", "Toggle public/private course", "TPP", "Annotate course", "ANNC", "Delete mark", "DELM", "Replace mark", "REPLM", "Add mark after this", "ADDM", "Name mark", "GMN", "Annotate mark", "ANNM"];
+list SETTING_OPTIONS = ["List blacklisted users", "LBU", "Toggle blacklist user", "TU", "List blacklisted courses", "LBC", "Toggle blacklist course", "TC", "Export my courses", "EMC", "Export all courses", "EAC"];
+
+string SELECT_COURSE = "\nSelect a course:";
+string COURSE_SAVED = "\nCourse saved.\n";
+string TRY_AGAIN = "\nSome error occured, please try again.\n";
+string GO_NEXT_CLICK = "\nGo to the next mark and click the HUD.\n";
+string ERROR_REREZ = "\nSome error occurred, try rezzing a new Navigator.\n";
+string CHOOSE_OPTION = "\nPlease choose an option:";
+string HOW_TURN = "\nHow do we turn this mark, clockwise or counterclockwise, is it a waypoint, a gate passing, a gate turn or is it the finish line?";
+string CLICK_NEW_MARK = "\nClick the HUD when you are at the new mark.";
+string DELETE_MARK = "\nDo you really want to delete this mark?";
+string DELETE_COURSE = "\nDo you really want to delete this course?";
+integer PREVIOUS = 1;
+integer MAIN = 2;
+integer NEXT = 3;
+
+
+choose(string text, list options, integer cancel) {
+	integer i;
+	integer j;
+	string option;
+	integer len = llGetListLength(options);
+	string c = "";
+	string s;
+	choices = [];
+	
+	if (text) s += text + "\n";
+	
+	for (i = 0; i < len; i += 2) {
+		j++;
+		option = llList2String(options, i);
+		choices += [j, option, llList2String(options, i + 1)];
+		s += (string)j + ". " + option + "\n";
+	}
+	
+	if (cancel) {
+		choices += ["c", "Cancel", ""];
+		s += "c" + ". " + "Cancel\n";
+		c = ", or c";
+	}
+	
+	if (j > 1)
+		llOwnerSay(s + "Choose: 1 - " + (string)j + c);
+	else
+		llOwnerSay(s + "Choose: 1" + c);
+		
+	//debug("choices: " + llDumpList2String(choices, ";"));
+	//debug("options: " + llDumpList2String(options, ";"));	
+}
+
+string choicek(string i) {
+	//debug("choicek: " + i);
+	//debug("choicek: " + (string)is_integer(i));
+	//debug("choicek: " + (string)(((integer)i - 1) * 3 + 2));
+	//debug("choicek: " + llDumpList2String(choices, ";"));
+	//debug("choicek: " + llList2String(choices, ((integer)i - 1) * 3 + 2));
+	//debug("choices length: " + (string)(llGetListLength(choices) / 3));
+	//debug("i: " + (string)i);
+	
+	if (is_integer(i))
+		if((integer)i >= 0 && (integer)i <= llGetListLength(choices) / 3)
+			return llList2String(choices, ((integer)i - 1) * 3 + 2);
+		else return "";
+	else if (i == "c")
+		return "CANCEL";
+	else
+		return "";
+}
+
+integer get_button() {
+	vector uv = llDetectedTouchUV(0);
+	
+	if (uv.x < (1 / 3.0))
+		return PREVIOUS;
+	else if (uv.x > (1 / 3.0) && uv.x < (2 / 3.0))
+		return MAIN;
+	else if (uv.x > (2 / 3.0))
+		return NEXT;
+	else
+		return 0;
+}
+
+// pragma inline
+get_user(string userkey) {
+    user_req_id = GET("/user", ["username", llKey2Name(userkey), "version", VERSION]);
+}
+
+// pragma inline
+get_state() {
+	get_state_req_id = GET("/getstate", []);
+}
+
+// pragma inline
+set_state(string s) {
+	set_state_req_id = POST("/setstate", ["courseid", courseid, "state", s]);
+}
+
+// pragma inline
+delete_state() {
+	delete_state_req_id = DELETE("/deletestate", []);
+}
+
+// pragma inline
+update_state(integer b) {
+	update_state_req_id = POST("/updatestate", ["button", b]);
+}
+
+// pragma inline
+add_course(string coursename) {
+	add_course_req_id = POST("/addcourse", ["coursename", coursename, "access", course_access, "type", course_type]);
+}
+
+// pragma inline
+save_course() {
+	save_course_req_id = POST("/savecourse", []);
+}
+
+// pragma inline
+region_courses() {
+    region_courses_req_id = GET("/regioncourses", []);
+}
+
+// pragma inline
+my_courses() {
+    my_courses_req_id = GET("/mycourses", []);
+}
+
+// pragma inline
+get_course() {
+    course_req_id = GET("/course", ["courseid", courseid]);
+}
+ 
+// pragma inline
+delete_course() {
+	delete_req_id = DELETE("/course", ["courseid", courseid]);
+}
+
+// pragma inline
+edit(string action) {
+	edit_req_id = POST("/edit", ["action", action, "courseid", courseid, "newcoursename", newcoursename, "newmarkname", newmarkname, "newmark", newmark, "newturn", newturn, "comment", comment]);
+}
+
+// pragma inline
+get_mark(integer n) {
+	get_mark_req_id = GET("/mark", ["n", n]);	
+}
+
+// pragma inline
+add_mark(integer n, string turn) {
+	add_mark_req_id = POST("/addmark", ["n", n, "turn", turn]);
+}
+
+set_mark(string s) {
+	list response = llCSV2List(s);
+	current_mark = llList2Integer(response, 0);
+	current_pos = <llList2Float(response, 1), llList2Float(response, 2), DEFAULT_Z>;
+	current_region = llList2String(response, 3);
+	current_turn = llList2String(response, 4);
+	llOwnerSay(llList2String(response, 5));
+	
+    if (in(["START", "GATEPASS", "WP", "FINISH"], current_turn))
+        set_texture("go");
+    else if (current_turn == "CW")
+        set_texture("cw");
+    else if (current_turn == "CCW")
+        set_texture("ccw");
+    else if (current_turn == "GATE")
+    	set_texture("gate");
+    
+    llMapDestination(current_region, current_pos, <0, 0, 0>);
+}
+
+// pragma inline
+get_bl_users() {
+	get_bl_users_req_id = GET("/getblacklistedusers", []);
+}
+
+// pragma inline
+get_bl_courses() {
+	get_bl_courses_req_id = GET("/getblacklistedcourses", []);
+}
+
+// pragma inline
+toggle_user(string username) {
+	toggle_user_req_id = POST("/blacklistuser", ["username", username]);
+}
+
+// pragma inline
+toggle_course() {
+	toggle_course_req_id = POST("/blacklistcourse", ["courseid", courseid]);
+}
+
+// pragma inline
+export_courses(integer mycourses) {
+	export_req_id = GET("/export/" + (string)mycourses, []);
+}
+
+// pragma inline
+init() {
+    current_region = courseid = course_access = course_type = state_ = edit_action = comment = newturn = "";
+    newmark = ZERO_VECTOR;
+    current_mark  = marks_length = 0;
+    course_done = FALSE;
+    choices = [];
+    owner = llGetOwner();
+}

@@ -1,0 +1,100 @@
+//    Copyright 2011 Trapez Breen
+//
+//    This file is part of Trap's Navigator.
+//
+//    Trap's Navigator is free software: you can redistribute it and/or modify
+//    it under the terms of the GNU General Public License as published by
+//    the Free Software Foundation, either version 3 of the License, or
+//    (at your option) any later version.
+//
+//    Trap's Navigator is distributed in the hope that it will be useful,
+//    but WITHOUT ANY WARRANTY; without even the implied warranty of
+//    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//    GNU General Public License for more details.
+//
+//    You should have received a copy of the GNU General Public License
+//    along with Trap's Navigator.  If not, see <http://www.gnu.org/licenses/>.
+
+$module (integer DEBUG, string SERVER)
+
+integer OK = 200;
+integer NO_RESPONSE = 204;
+integer NOT_ACCEPTABLE = 406;
+
+
+// pragma inline
+debug (string text) {
+	if (DEBUG)
+		llOwnerSay("Debug: " + text);
+}
+
+// pragma inline
+string free_mem() {
+	return "\nFree memory: " + (string)(100 - llRound(100 * (1.0 - llGetFreeMemory() / 65536.0))) + "%.";
+}
+
+list order_options(list options) {
+    return llList2List(options, -3, -1) + llList2List(options, -6, -4)
+         + llList2List(options, -9, -7) + llList2List(options, -12, -10);
+}
+
+integer is_integer(string s) {
+    integer i;
+    integer len = llStringLength(s);
+    
+    for (i=0; i<len; i++)
+        if(llListFindList(["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"], [llGetSubString(s, i, i)]) == -1)
+			return FALSE;
+    return TRUE;
+}
+
+// pragma inline
+integer in(list strings, string test) {
+	return llListFindList(strings, [test]) > -1;
+}
+
+// pragma inline
+set_texture(string name) {
+    llSetLinkPrimitiveParamsFast(LINK_THIS, [PRIM_TEXTURE, 4, name, <1, 1, 1>, <0.0, 0.0, 0.0>, 0.0]);
+}
+
+string make_params(list params) {
+    string values;
+    integer i;
+	integer len = llGetListLength(params);
+	
+    for (i = 0; i < len; i += 2)
+        values += llEscapeURL(llList2String(params, i)) + "=" + llEscapeURL(llList2String(params, i + 1)) + "&";
+        
+	return values;	
+}
+
+// pragma inline
+key GET(string path, list params) {    
+    return llHTTPRequest(SERVER + path + "?" + make_params(params), [HTTP_METHOD, "GET", HTTP_MIMETYPE, "text/plain;charset=utf-8"], "");	
+}
+
+// pragma inline
+key PUT(string path, list params) {
+    return llHTTPRequest(SERVER + path + "?" + make_params(params), [HTTP_METHOD, "PUT", HTTP_MIMETYPE, "text/plain;charset=utf-8"], "");	
+}
+
+// pragma inline
+key POST(string path, list params) {
+    return llHTTPRequest(SERVER + path + "?" + make_params(params), [HTTP_METHOD, "POST", HTTP_MIMETYPE, "application/x-www-form-SERVERencoded;charset=utf-8"], "");	
+}
+
+// pragma inline
+key DELETE(string path, list params) {
+  	return llHTTPRequest(SERVER + path + "?" + make_params(params), [HTTP_METHOD, "DELETE", HTTP_MIMETYPE, "text/plain;charset=utf-8"], "");	
+}
+
+// pragma inline
+integer make_channel() {
+    return ((integer)("0x" + llGetSubString((string)llGetKey(), -8, -1)) & 0x3FFFFFFF) ^ 0xBFFFFFFF;
+}
+
+// pragma inline
+string str_replace(string str, string search, string replace) {
+    return llDumpList2String(llParseStringKeepNulls((str = "") + str, [search], []), replace);
+}
