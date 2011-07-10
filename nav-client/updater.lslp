@@ -15,7 +15,7 @@
 //    You should have received a copy of the GNU General Public License
 //    along with Trap's Navigator.  If not, see <http://www.gnu.org/licenses/>.
 
-//string SERVER = "http://88.90.51.112:8081";
+//string SERVER = "";
 string SERVER = "http://trapsnavigator.appspot.com";
 integer DEBUG = FALSE;
 

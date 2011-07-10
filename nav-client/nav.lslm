@@ -17,8 +17,8 @@
 
 $module (integer DEBUG)
 
-//string SERVER = "http://trapsnavigator.appspot.com";
-string SERVER = "http://88.90.51.112:8081";
+//string SERVER = "";
+string SERVER = "";
 $import utils.lslm(DEBUG=DEBUG, SERVER=SERVER);
 
 key user_req_id;
