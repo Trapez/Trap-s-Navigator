@@ -46,7 +46,7 @@ class Mark(db.Model):
     created = db.DateTimeProperty(required=True, auto_now_add=True)
     deactivated = db.BooleanProperty(required=True, default=False)
     
-class Course(db.Expando):
+class Course(db.Model):
     name = db.StringProperty(required=True)
     comment = db.TextProperty()
     start_region = db.ReferenceProperty(Region, collection_name="start_region_collection")
