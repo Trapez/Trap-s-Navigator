@@ -811,22 +811,6 @@ def blacklistuser():
         if DEBUG: print_exc()
         logging.error(str(e))
         return Response("\nUser was not blacklisted. %s." % e, status=500)
-
-    def get(self, **kw):
-        user_key = self.request.headers.get("X-SecondLife-Owner-Key")
-        user = get_user(user_key)
-        region_name, _, _ = get_region(self.request.headers.get("X-SecondLife-Region"))
-        region = Region.get_by_key_name(region_name)
-        
-        query = BlacklistCourse.all()
-        query.ancestor(user)
-        query.filter("region =", region)
-        result = sorted(["%s (by %s)" % (n.course.name, n.course.user.name) for n in query])
-        
-        if result:
-            return Response("\nBlacklisted courses:\n" + "\n".join(result))
-        else:
-            return Response("\nYour course blacklist is empty.")  
         
 @app.route("/getblacklistedcourses")
 def getblacklistedcourses():
@@ -892,7 +876,13 @@ def register(self, **kw):
         url = request.args.get("url")
         
         if sha1(secret).hexdigest() == SECRET_HASH and url:
-            Setting.get_or_insert(key_name="update.url", name="update.url", value=url)
+            s = Setting.all().filter("name =", "update.url").get()
+            if not s is None:
+                s.value = url
+                s.put()
+            else:
+                s = Setting(name="update.url", value=url)
+                s.put()
             memcache.set(key="update.url", value=serialize_entities(url), time=CACHE_TIME * 24)
             logging.info("New url recieved: %s" % url)
         return Response("URL recieved.")
